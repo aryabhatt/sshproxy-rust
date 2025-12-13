@@ -16,4 +16,3 @@ rpassword = "7.3"
 whoami = "1.5"
 totp-lite = "2.0"
 data-encoding = "2.5"
-bitwarden = { version = "1.0.0", features = ["secrets"] }

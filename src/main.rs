@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-//use bitwarden::secrets_manager;
+use clap::Parser;
 use reqwest::Client;
-use security_framework::passwords::get_generic_password;
+use security_framework::passwords::{get_generic_password, set_generic_password};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, fs};
@@ -9,6 +9,43 @@ use std::{env, fs};
 const SERVICE_NAME: &str = "NERSC";
 const URL: &str = "https://sshproxy.nersc.gov";
 const SCOPE: &str = "default";
+
+#[derive(Parser)]
+#[command(
+    author = "Dinesh Kumar",
+    about = "Retrieve NERSC SSH keys using macOS Keychain for credentials",
+    long_about = None,
+    version = "1.0"
+    )]
+struct Args {
+    /// Username, if not provided, taken from USER env variable
+    // #[clap(long, env = "USER")]
+    username: Option<String>,
+
+    /// Update NERSC password in macOS Keychain
+    #[clap(short = 'p', long)]
+    update_password: bool,
+
+    /// Update NERSC TOTP secret in macOS Keychain
+    #[clap(long)]
+    update_secret: bool,
+}
+
+/// NERSC passwords expire every year.
+fn update_password(username: &str, password: &str) -> Result<()> {
+    // save password
+    set_generic_password(SERVICE_NAME, username, password.as_bytes())
+        .context("Failed to save password to keychain")?;
+    Ok(())
+}
+/// usually totp secrets do not expire
+fn update_secret(username: &str, otp_secret: &str) -> Result<()> {
+    // save otp secret
+    let service = format!("{}_SECRET", SERVICE_NAME);
+    set_generic_password(&service, username, otp_secret.as_bytes())
+        .context("Failed to save OTP secret to keychain")?;
+    Ok(())
+}
 
 /// Retrieve password from macOS Keychain
 fn get_password(username: &str) -> Result<String> {
@@ -162,6 +199,33 @@ fn get_cert_validity(cert_path: &str) -> Result<String> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Parse command line arguments
+    let args = Args::parse();
+
+    // get username
+    let username = args.username.unwrap_or_else(|| {
+        env::var("USER")
+            .expect("Could not determine username from environment. Please provide --username.")
+    });
+
+    // check if we need to update password
+    if args.update_password {
+        println!("Enter new password for user {}: ", username);
+        let password = rpassword::read_password().context("Failed to read password")?;
+        update_password(&username, &password)?;
+        println!("Password updated successfully.");
+        return Ok(());
+    }
+
+    // check if we need to update otp secret
+    if args.update_secret {
+        println!("Enter TOTP secret for user {}: ", username);
+        let otp_secret = rpassword::read_password().context("Failed to read OTP secret")?;
+        update_secret(&username, &otp_secret)?;
+        println!("OTP secret updated successfully.");
+        return Ok(());
+    }
+
     // Determine output path
     let home = dirs::home_dir().context("Could not determine home directory")?;
     let key_path = home.join(".ssh").join("nersc");

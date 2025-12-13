@@ -23,58 +23,49 @@ The binary will be at `target/release/sshproxy-rust`
 ### First-time setup: Store credentials
 
 ```bash
-./target/release/sshproxy-rust --store-credentials -u <username>
+./target/release/sshproxy-rust --update-password
 ```
+This will prompt for your NERSC password
 
-This will prompt for:
-- Your NERSC password
-- Your OTP secret (base32 encoded, from your authenticator app setup)
+```bash
+./target/release/sshproxy-rust --update-secret
+```
+This will prompt for your NERSC TOTP Secret
 
-Credentials are stored securely in macOS Keychain under service name `nersc-sshproxy`.
+
+Credentials are stored securely in macOS Keychain under services `NERSC` (for password) and `NERSC_SECRET` (for TOTP secret)
 
 ### Get SSH key and certificate
 
 ```bash
-# Use default settings (scope: default, output: ~/.ssh/default)
-./target/release/sshproxy-rust -u <username>
+# Use default settings (scope: default, output: ~/.ssh/nersc)
+./target/release/sshproxy-rust
 
-# Specify custom scope
-./target/release/sshproxy-rust -u <username> -s perlmutter
-
-# Specify output path
-./target/release/sshproxy-rust -u <username> -o ~/.ssh/my-nersc-key
-
-# Use collaboration account
-./target/release/sshproxy-rust -u <username> -c <collab-account>
-
-# Use alternate server URL (for testing)
-./target/release/sshproxy-rust -u <username> -U https://test.sshproxy.nersc.gov
+# Or specify username explicitly
+./target/release/sshproxy-rust yourusername
 ```
-
 ## Command-line Options
 
 ```
 Options:
-  -u, --user <USER>           NERSC username [default: current user]
-  -o, --output <OUTPUT>       Output file path for private key
-  -s, --scope <SCOPE>         Scope for the SSH key [default: default]
-  -c, --collab <COLLAB>       Collaboration account (optional)
-  -U, --url <URL>             URL for sshproxy server [default: https://sshproxy.nersc.gov]
-      --store-credentials     Store credentials in keychain
+  [USERNAME]                  NERSC username [default: USER environment variable]
+  -p, --update-password       Update NERSC password in macOS Keychain
+      --update-secret         Update NERSC TOTP secret in macOS Keychain
   -h, --help                  Print help
+  -V, --version              Print version
 ```
 
 ## How it works
 
-1. **Credential Retrieval**: Loads password and OTP secret from macOS Keychain
-2. **TOTP Generation**: Generates current TOTP code using the stored secret
-3. **API Request**: POSTs to `/create_pair/{scope}` with Basic Auth (username:password+OTP)
-4. **Key Processing**: Extracts private key and certificate from response
+1. **Credential Retrieval**: Loads password and OTP secret from macOS Keychain for the current user
+2. **TOTP Generation**: Generates current TOTP code (6-digit, 30-second interval) using SHA1 algorithm
+3. **API Request**: POSTs to `https://sshproxy.nersc.gov/create_pair/default/` with HTTP Basic Auth (username:password+OTP)
+4. **Key Processing**: Extracts private key and certificate from the combined response
 5. **File Management**: 
-   - Saves private key to specified path with 600 permissions
-   - Extracts and saves certificate to `{path}-cert.pub`
-   - Generates and saves public key to `{path}.pub`
-6. **Validation**: Displays certificate validity period
+   - Saves private key to `~/.ssh/nersc` with 600 permissions
+   - Extracts and saves certificate to `~/.ssh/nersc-cert.pub`
+   - Generates and saves public key to `~/.ssh/nersc.pub` using `ssh-keygen`
+6. **Validation**: Displays certificate validity period using `ssh-keygen -L`
 
 ## Security Notes
 
@@ -116,17 +107,7 @@ Options:
 
 - macOS (for Keychain integration)
 - Rust 1.70+ 
-- `ssh-keygen` available in PATH
-
-## TODO / Future Enhancements
-
-- [ ] Add ssh-agent integration with automatic expiration
-- [ ] Support for other secure vaults (Linux Secret Service, Windows Credential Manager)
-- [ ] PuTTY format output option
-- [ ] SOCKS proxy support
-- [ ] Configurable TOTP parameters (digits, interval)
-- [ ] Credential rotation/update commands
-- [ ] List stored credentials
+- `ssh-keygen` available in PATH (for generating public key and reading certificate info)
 
 ## License
 

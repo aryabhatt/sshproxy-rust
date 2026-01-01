@@ -48,6 +48,10 @@ Certificates are saved to:
 
 🔧 **[API Documentation](https://aryabhatt.github.io/sshproxy-rust/sshproxy_rust/)** - Full API docs
 
+## Acknowledgments
+
+Documentation created with the help of Claude Sonnet 4.5 via https://chat.cborg.lbl.gov
+
 ## License
 
 BSD-3-Clause (matching original sshproxy)

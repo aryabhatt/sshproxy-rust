@@ -1,5 +1,8 @@
 # sshproxy-rust
 
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aryabhatt.github.io/sshproxy-rust/sshproxy_rust/)
+
+
 A stripped-down Rust implementation of NERSC's SSH Proxy client that securely stores credentials in system credential storage and automatically generates TOTP codes.
 
 ## Features
@@ -123,6 +126,9 @@ Options:
 - macOS or Linux
 - Rust 1.70+ 
 - `ssh-keygen` available in PATH (for generating public key and reading certificate info)
+
+## Documentation
+Full API docs and usage instructions are available [here](https://aryabhatt.github.io/sshproxy-rust/sshproxy_rust/).
 
 ## License
 

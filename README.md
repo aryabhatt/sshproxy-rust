@@ -15,21 +15,22 @@ A stripped-down Rust implementation of NERSC's SSH Proxy client that securely st
 
 ```bash
 cargo build --release
+cargo install --path .
 ```
 
-The binary will be at `target/release/sshproxy-rust`
+The binary will be at `$HOME/.cargo/bin`
 
 ## Usage
 
 ### First-time setup: Store credentials
 
 ```bash
-./target/release/sshproxy-rust --update-password
+sshproxy-rust --update-password
 ```
 This will prompt for your NERSC password
 
 ```bash
-./target/release/sshproxy-rust --update-secret
+sshproxy-rust --update-secret
 ```
 This will prompt for your NERSC TOTP Secret
 
@@ -42,10 +43,10 @@ Credentials are stored securely in system credential storage:
 
 ```bash
 # Use default settings (scope: default, output: ~/.ssh/nersc)
-./target/release/sshproxy-rust
+sshproxy-rust
 
 # Or specify username explicitly
-./target/release/sshproxy-rust yourusername
+sshproxy-rust yourusername
 ```
 ## Command-line Options
 

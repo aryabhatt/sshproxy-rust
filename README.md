@@ -22,7 +22,7 @@ cargo install --path .
 
 The binary will be at `$HOME/.cargo/bin`
 
-### From GitHub release
+### Alternatively from GitHub release
 
 ```bash
 cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.0.0

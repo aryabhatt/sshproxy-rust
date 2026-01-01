@@ -2,6 +2,8 @@
 name = "sshproxy-rust"
 version = "2.0.0"
 edition = "2021"
+documentation = "https://aryabhatt.github.io/sshproxy-rust/"
+
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -21,3 +23,5 @@ security-framework = "3.5.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.3", features = ["linux-native"] }
+
+

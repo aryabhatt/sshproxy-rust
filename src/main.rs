@@ -281,15 +281,12 @@ async fn main() -> Result<()> {
     let home = dirs::home_dir().context("Could not determine home directory")?;
     let key_path = home.join(".ssh").join("nersc");
 
-    // get username from env
-    let user = env::var("USER").context("Could not determine username from environment")?;
-
     // Retrieve credentials from keychain
-    let password = get_password(&user)
-        .context("Failed to get password. Run with --store-credentials first")?;
+    let password = get_password(&username)
+        .context("Failed to get password. Run with --update-password first")?;
 
-    let otp_secret = get_otp_secret(&user)
-        .context("Failed to get OTP secret. Run with --store-credentials first")?;
+    let otp_secret = get_otp_secret(&username)
+        .context("Failed to get OTP secret. Run with --update-secret first")?;
 
     // Generate TOTP code
     let totp_code = generate_totp(&otp_secret)?;
@@ -297,10 +294,10 @@ async fn main() -> Result<()> {
     // Combine password and OTP
     let password_otp = format!("{}{}", password, totp_code);
 
-    println!("Requesting SSH key for user: {}", user);
+    println!("Requesting SSH key for user: {}", username);
 
     // Request key from API
-    let key_content = request_ssh_key(&user, &password_otp).await?;
+    let key_content = request_ssh_key(&username, &password_otp).await?;
 
     // Extract certificate
     let cert_content = extract_certificate(&key_content)?;

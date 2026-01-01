@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SCOPE","SERVICE_NAME","URL"],"fn":["extract_certificate","generate_totp","get_cert_validity","get_otp_secret","get_password","main","request_ssh_key","save_key_files","update_password","update_secret"],"struct":["Args"]};

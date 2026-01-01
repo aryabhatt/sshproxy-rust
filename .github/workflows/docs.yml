@@ -26,8 +26,26 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
       - name: Build documentation
-        run: cargo doc --no-deps
+        run: cargo doc --no-deps --all-features
+
+      - name: Convert INDEX.md to HTML
+        run: |
+          if [ -f docs/INDEX.md ]; then
+            pandoc docs/INDEX.md -o target/doc/index.html --standalone --metadata title="sshproxy-rust Documentation"
+          else
+            echo "Warning: docs/INDEX.md not found, skipping conversion"
+          fi
+      
+      - name: Verify documentation
+        run: |
+          if [ ! -d target/doc ]; then
+            echo "Error: Documentation directory not found"
+            exit 1
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

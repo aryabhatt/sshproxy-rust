@@ -10,9 +10,14 @@ reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
-security-framework = "2.11"
 dirs = "5.0"
 rpassword = "7.3"
 whoami = "1.5"
 totp-lite = "2.0"
 data-encoding = "2.5"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3.5.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = "3.3"

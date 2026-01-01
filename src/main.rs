@@ -22,7 +22,7 @@ const SCOPE: &str = "default";
     author = "Dinesh Kumar",
     about = "Retrieve NERSC SSH keys using system credential storage",
     long_about = None,
-    version = "1.0"
+    version = "2.0.0"
     )]
 struct Args {
     /// Username, if not provided, taken from USER env variable

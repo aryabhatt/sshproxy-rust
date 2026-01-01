@@ -25,7 +25,7 @@ The binary will be at `$HOME/.cargo/bin`
 ### From GitHub release
 
 ```bash
-cargo install --git https://github.com/dkumar/sshproxy-rust --tag v2.0.0
+cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.0.0
 ```
 
 ## Usage

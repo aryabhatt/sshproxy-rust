@@ -13,12 +13,20 @@ A stripped-down Rust implementation of NERSC's SSH Proxy client that securely st
 
 ## Installation
 
+### From source
+
 ```bash
 cargo build --release
 cargo install --path .
 ```
 
 The binary will be at `$HOME/.cargo/bin`
+
+### From GitHub release
+
+```bash
+cargo install --git https://github.com/dkumar/sshproxy-rust --tag v2.0.0
+```
 
 ## Usage
 

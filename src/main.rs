@@ -1,7 +1,14 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use reqwest::Client;
+
+// Platform-specific imports
+#[cfg(target_os = "macos")]
 use security_framework::passwords::{get_generic_password, set_generic_password};
+
+#[cfg(target_os = "linux")]
+use keyring::Entry;
+
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, fs};
@@ -13,7 +20,7 @@ const SCOPE: &str = "default";
 #[derive(Parser)]
 #[command(
     author = "Dinesh Kumar",
-    about = "Retrieve NERSC SSH keys using macOS Keychain for credentials",
+    about = "Retrieve NERSC SSH keys using system credential storage",
     long_about = None,
     version = "1.0"
     )]
@@ -32,6 +39,7 @@ struct Args {
 }
 
 /// NERSC passwords expire every year.
+#[cfg(target_os = "macos")]
 fn update_password(username: &str, password: &str) -> Result<()> {
     // save password
     set_generic_password(SERVICE_NAME, username, password.as_bytes())
@@ -39,6 +47,7 @@ fn update_password(username: &str, password: &str) -> Result<()> {
     Ok(())
 }
 /// usually totp secrets do not expire
+#[cfg(target_os = "macos")]
 fn update_secret(username: &str, otp_secret: &str) -> Result<()> {
     // save otp secret
     let service = format!("{}_SECRET", SERVICE_NAME);
@@ -48,6 +57,7 @@ fn update_secret(username: &str, otp_secret: &str) -> Result<()> {
 }
 
 /// Retrieve password from macOS Keychain
+#[cfg(target_os = "macos")]
 fn get_password(username: &str) -> Result<String> {
     let password = get_generic_password(SERVICE_NAME, username)
         .context("Failed to retrieve password from keychain")?;
@@ -55,11 +65,52 @@ fn get_password(username: &str) -> Result<String> {
 }
 
 /// Retrieve OTP secret from macOS Keychain
+#[cfg(target_os = "macos")]
 fn get_otp_secret(username: &str) -> Result<String> {
     let service = format!("{}_SECRET", SERVICE_NAME);
     let secret = get_generic_password(&service, username)
         .context("Failed to retrieve OTP secret from keychain")?;
     Ok(String::from_utf8(secret.to_vec())?)
+}
+
+/// NERSC passwords expire every year.
+#[cfg(target_os = "linux")]
+fn update_password(username: &str, password: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, username).context("Failed to create keyring entry")?;
+    entry
+        .set_password(password)
+        .context("Failed to save password to credential storage")?;
+    Ok(())
+}
+
+/// usually totp secrets do not expire
+#[cfg(target_os = "linux")]
+fn update_secret(username: &str, otp_secret: &str) -> Result<()> {
+    let service = format!("{}_SECRET", SERVICE_NAME);
+    let entry = Entry::new(&service, username).context("Failed to create keyring entry")?;
+    entry
+        .set_password(otp_secret)
+        .context("Failed to save OTP secret to credential storage")?;
+    Ok(())
+}
+
+/// Retrieve password from credential storage
+#[cfg(target_os = "linux")]
+fn get_password(username: &str) -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, username).context("Failed to create keyring entry")?;
+    entry
+        .get_password()
+        .context("Failed to retrieve password from credential storage")
+}
+
+/// Retrieve OTP secret from credential storage
+#[cfg(target_os = "linux")]
+fn get_otp_secret(username: &str) -> Result<String> {
+    let service = format!("{}_SECRET", SERVICE_NAME);
+    let entry = Entry::new(&service, username).context("Failed to create keyring entry")?;
+    entry
+        .get_password()
+        .context("Failed to retrieve OTP secret from credential storage")
 }
 
 /// Generate TOTP code from secret

@@ -14,7 +14,7 @@ cargo build --release
 cargo install --path .
 
 # Or from GitHub
-cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.0.0
+cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.1.0
 ```
 
 ### First-Time Setup

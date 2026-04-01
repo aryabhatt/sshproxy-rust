@@ -6,9 +6,10 @@ use reqwest::Client;
 #[cfg(target_os = "macos")]
 use security_framework::passwords::{get_generic_password, set_generic_password};
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use keyring::Entry;
 
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, fs};
@@ -22,7 +23,7 @@ const SCOPE: &str = "default";
     author = "Dinesh Kumar",
     about = "Retrieve NERSC SSH keys using system credential storage",
     long_about = None,
-    version = "2.0.0"
+    version = "2.1.0"
     )]
 struct Args {
     /// Username, if not provided, taken from USER env variable
@@ -113,6 +114,46 @@ fn get_otp_secret(username: &str) -> Result<String> {
         .context("Failed to retrieve OTP secret from credential storage")
 }
 
+/// NERSC passwords expire every year.
+#[cfg(target_os = "windows")]
+fn update_password(username: &str, password: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, username).context("Failed to create keyring entry")?;
+    entry
+        .set_password(password)
+        .context("Failed to save password to credential storage")?;
+    Ok(())
+}
+
+/// usually totp secrets do not expire
+#[cfg(target_os = "windows")]
+fn update_secret(username: &str, otp_secret: &str) -> Result<()> {
+    let service = format!("{}_SECRET", SERVICE_NAME);
+    let entry = Entry::new(&service, username).context("Failed to create keyring entry")?;
+    entry
+        .set_password(otp_secret)
+        .context("Failed to save OTP secret to credential storage")?;
+    Ok(())
+}
+
+/// Retrieve password from credential storage
+#[cfg(target_os = "windows")]
+fn get_password(username: &str) -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, username).context("Failed to create keyring entry")?;
+    entry
+        .get_password()
+        .context("Failed to retrieve password from credential storage")
+}
+
+/// Retrieve OTP secret from credential storage
+#[cfg(target_os = "windows")]
+fn get_otp_secret(username: &str) -> Result<String> {
+    let service = format!("{}_SECRET", SERVICE_NAME);
+    let entry = Entry::new(&service, username).context("Failed to create keyring entry")?;
+    entry
+        .get_password()
+        .context("Failed to retrieve OTP secret from credential storage")
+}
+
 /// Generate TOTP code from secret
 fn generate_totp(secret: &str) -> Result<String> {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -190,11 +231,14 @@ fn save_key_files(key_path: &PathBuf, key_content: &str, cert_content: &str) -> 
     // Save private key
     fs::write(key_path, key_content).context("Failed to write private key")?;
 
-    // Set permissions to 600
-    let metadata = fs::metadata(key_path)?;
-    let mut permissions = metadata.permissions();
-    permissions.set_mode(0o600);
-    fs::set_permissions(key_path, permissions)?;
+    // Set permissions to 600 (Unix only)
+    #[cfg(unix)]
+    {
+        let metadata = fs::metadata(key_path)?;
+        let mut permissions = metadata.permissions();
+        permissions.set_mode(0o600);
+        fs::set_permissions(key_path, permissions)?;
+    }
 
     // Save certificate
     let cert_path = key_path
@@ -256,7 +300,8 @@ async fn main() -> Result<()> {
     // get username
     let username = args.username.unwrap_or_else(|| {
         env::var("USER")
-            .expect("Could not determine username from environment. Please provide --username.")
+            .or_else(|_| env::var("USERNAME"))
+            .unwrap_or_else(|_| whoami::username())
     });
 
     // check if we need to update password

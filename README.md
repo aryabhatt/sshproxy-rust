@@ -27,6 +27,11 @@ sshproxy-rust --update-password
 sshproxy-rust --update-secret
 ```
 
+Credentials are stored securely in system credential storage:
+- **macOS**: Keychain under services `NERSC` (for password) and `NERSC_SECRET` (for TOTP secret)
+- **Linux**: Kernel keyring under the same service names
+- **Windows**: Credential Manager under the same service names
+
 ### Generate SSH Certificate
 
 ```bash

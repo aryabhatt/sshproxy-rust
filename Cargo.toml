@@ -25,4 +25,4 @@ security-framework = "3.5.1"
 keyring = { version = "3.3", features = ["linux-native"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-keyring = "3.3"
+keyring = { version = "3.3", features = ["windows-native"] }

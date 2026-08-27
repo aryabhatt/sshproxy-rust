@@ -26,7 +26,7 @@ A stripped-down Rust implementation of NERSC's SSH Proxy client that securely st
 
 ## Features
 
-- **Secure credential storage** using macOS Keychain or Linux kernel keyring
+- **Secure credential storage** using macOS Keychain, Linux kernel keyring, Windows Credential Manager, Bitwarden, 1Password, or an age-encrypted local file
 - **Automatic TOTP generation** from stored secret
 - **Async REST API** calls using reqwest
 - **Minimal dependencies** and clean code
@@ -129,7 +129,7 @@ All keys are automatically set to `600` permissions (owner read/write only).
 
 ### Credential Storage
 
-Credentials are stored securely in system-native credential storage:
+Credentials are stored securely in system-native credential storage by default:
 
 - **macOS**: Keychain
   - Service: `NERSC` (password)
@@ -138,8 +138,67 @@ Credentials are stored securely in system-native credential storage:
   
 - **Linux**: Kernel keyring
   - Session keyring: Persists until logout
-  - For persistent storage across reboots, consider using `user` keyring or a password manager
+  - For persistent storage across logins/reboots without a desktop/D-Bus session (e.g.
+    headless SSH to a login node), use `credential_source = "local"` (see below) — a
+    password manager (Bitwarden/1Password) or a Secret-Service-backed keyring both
+    require infrastructure (a CLI login, or a running desktop keyring daemon) that isn't
+    guaranteed to be present in that environment
   - Service names: `NERSC` and `NERSC_SECRET`
+
+Optional password manager sources are configured in `~/.config/sshproxy-rust/config.toml`.
+
+**Bitwarden**
+
+```toml
+credential_source = "bitwarden"
+
+[bitwarden]
+item = "NERSC"
+# command = "bw"
+```
+
+The Bitwarden CLI must be installed, logged in, and unlocked. If your Bitwarden CLI session requires `BW_SESSION`, export it before running `sshproxy-rust`. The configured item must contain the NERSC password and a TOTP field; the tool calls `bw get password <item>` and `bw get totp <item>`.
+
+**1Password**
+
+```toml
+credential_source = "1password"
+
+[onepassword]
+item = "NERSC"
+vault = "Private"
+# account = "work"
+# command = "op"
+# password_field = "password"
+```
+
+The 1Password CLI must be installed and signed in. The configured item must contain the NERSC password field and a one-time password field; the tool calls `op item get <item> --fields label=<password_field> --reveal` and `op item get <item> --otp`.
+
+**Local Encrypted File**
+
+```toml
+credential_source = "local"
+
+[local_file]
+# path = "/custom/path/credentials.age"
+```
+
+Stores your NERSC password and TOTP secret in an age-encrypted file (default:
+`~/.config/sshproxy-rust/credentials.age`), protected by a passphrase you enter
+interactively. Run `sshproxy-rust --update-password` and `sshproxy-rust --update-secret`
+to create/update the file — you'll be prompted for the passphrase (and asked to confirm
+it the first time the file is created). The passphrase is never stored anywhere and must
+be re-entered every time credentials are read or updated. Uses
+[age](https://age-encryption.org)'s scrypt-based passphrase encryption; losing the
+passphrase means losing access to the stored credentials with no recovery path.
+
+This is the recommended way to get credential persistence across logins/reboots on
+headless Linux systems: unlike a Secret-Service-backed keyring (e.g. GNOME Keyring/
+KWallet, as used by crates like `oo7` or `keyring`'s `secret-service` backends), it has
+no D-Bus/desktop-session dependency, so it works the same whether you're on a desktop or
+SSH'ed into a login node with no desktop environment running.
+
+Use `sshproxy-rust --config /path/to/config.toml` to load a non-default config file.
 
 ### Using with SSH
 
@@ -173,6 +232,7 @@ Arguments:
 Options:
   -p, --update-password       Update NERSC password in credential storage
       --update-secret         Update NERSC TOTP secret in credential storage
+      --config <CONFIG>       Path to config file
   -h, --help                  Print help
   -V, --version              Print version
 ```
@@ -205,6 +265,11 @@ sshproxy-rust --update-password
 sshproxy-rust --update-secret
 ```
 
+`--update-password` and `--update-secret` also work when `credential_source` is `local`
+(you'll be prompted for the passphrase each time). When `credential_source` is
+`bitwarden` or `1password`, these flags are ignored — update those credentials directly
+in the password manager.
+
 #### Check version
 
 ```bash
@@ -217,9 +282,9 @@ sshproxy-rust --version
 
 The tool follows a six-step process to generate SSH credentials:
 
-1. **Credential Retrieval**: Loads password and OTP secret from system credential storage for the current user
+1. **Credential Retrieval**: Loads password and OTP from system credential storage, Bitwarden, 1Password, or an age-encrypted local file
 
-2. **TOTP Generation**: Generates current TOTP code (6-digit, 30-second interval) using SHA1 algorithm
+2. **TOTP Generation**: Generates the current TOTP code from the stored secret for system storage and the local file source, or asks Bitwarden/1Password for the current OTP code
 
 3. **API Request**: POSTs to `https://sshproxy.nersc.gov/create_pair/default/` with HTTP Basic Auth (username:password+OTP)
 
@@ -244,9 +309,9 @@ The tool follows a six-step process to generate SSH credentials:
 
 ### Security Features
 
-- ✅ **No plaintext storage**: Credentials stored in OS-native secure storage
+- ✅ **No plaintext storage**: Credentials stored in OS-native secure storage or an age-encrypted file
 - ✅ **TOTP on-the-fly**: TOTP codes generated dynamically, never stored
-- ✅ **Secure file permissions**: Private keys automatically set to 600
+- ✅ **Secure file permissions**: Private keys and the local credentials file automatically set to 600
 - ✅ **HTTPS-only**: All API communication encrypted via TLS
 - ✅ **No credential logging**: Passwords and secrets never logged
 
@@ -254,6 +319,10 @@ The tool follows a six-step process to generate SSH credentials:
 
 - **macOS Keychain**: Credentials protected by Keychain encryption, same security as Safari passwords
 - **Linux Kernel Keyring**: Session-based storage, cleared on logout
+- **Local Encrypted File**: Protected by a passphrase-derived key (scrypt, via the `age`
+  format); strength depends entirely on passphrase quality. File permissions are set to
+  600 on unix as defense-in-depth — the encryption itself is the primary protection on
+  all platforms, including Windows, where no filesystem ACL lockdown is applied.
 - **HTTPS Basic Auth**: Password and OTP combined and sent via HTTPS Basic Authentication
 - **Private Key Protection**: Files created with restrictive permissions from the start
 
@@ -443,6 +512,8 @@ Core dependencies:
 - **data-encoding** - Base32 decoding for TOTP secrets
 - **rpassword** - Secure password input (no echo)
 - **dirs** - Cross-platform home directory detection
+- **toml** - Configuration file parsing
+- **age** - Passphrase-based (scrypt) encryption for the local encrypted credentials file
 
 ---
 

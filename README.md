@@ -2,7 +2,7 @@
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aryabhatt.github.io/sshproxy-rust/)
 
-A stripped-down Rust implementation of NERSC's SSH Proxy client that securely stores credentials in system credential storage and automatically generates TOTP codes.
+A stripped-down Rust implementation of NERSC's SSH Proxy client that securely stores credentials in system credential storage, Bitwarden, 1Password, or an age-encrypted local file, and automatically generates SSH certificates.
 
 ## Quick Start
 
@@ -31,6 +31,35 @@ Credentials are stored securely in system credential storage:
 - **macOS**: Keychain under services `NERSC` (for password) and `NERSC_SECRET` (for TOTP secret)
 - **Linux**: Kernel keyring under the same service names
 - **Windows**: Credential Manager under the same service names
+
+You can also use Bitwarden or 1Password by creating `~/.config/sshproxy-rust/config.toml`:
+
+```toml
+credential_source = "bitwarden"
+
+[bitwarden]
+item = "NERSC"
+```
+
+```toml
+credential_source = "1password"
+
+[onepassword]
+item = "NERSC"
+vault = "Private"
+```
+
+Or store credentials in an age-encrypted local file, protected by a passphrase you enter interactively (never stored):
+
+```toml
+credential_source = "local"
+
+[local_file]
+# path = "/custom/path/credentials.age"   # optional, defaults to
+                                            # ~/.config/sshproxy-rust/credentials.age
+```
+
+`--update-password` and `--update-secret` work for `system` and `local` sources (for `local`, you'll be prompted for a passphrase, and asked to confirm it the first time the file is created). They are ignored for Bitwarden/1Password — update those credentials directly in the password manager.
 
 ### Generate SSH Certificate
 

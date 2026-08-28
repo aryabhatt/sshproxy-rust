@@ -3,18 +3,14 @@ use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::providers::bitwarden::BitwardenConfig;
 use crate::providers::local_file::LocalFileConfig;
-use crate::providers::onepassword::OnePasswordConfig;
+use crate::providers::system::SystemConfig;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum CredentialSource {
     #[default]
     System,
-    Bitwarden,
-    #[serde(rename = "1password")]
-    OnePassword,
     #[serde(rename = "local")]
     LocalFile,
 }
@@ -24,9 +20,7 @@ pub struct Config {
     #[serde(default)]
     pub credential_source: CredentialSource,
     #[serde(default)]
-    pub bitwarden: BitwardenConfig,
-    #[serde(default)]
-    pub onepassword: OnePasswordConfig,
+    pub system: SystemConfig,
     #[serde(default)]
     pub local_file: LocalFileConfig,
 }

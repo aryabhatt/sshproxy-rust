@@ -26,7 +26,7 @@ A stripped-down Rust implementation of NERSC's SSH Proxy client that securely st
 
 ## Features
 
-- **Secure credential storage** using macOS Keychain, Linux kernel keyring, Windows Credential Manager, Bitwarden, 1Password, or an age-encrypted local file
+- **Secure credential storage** using macOS Keychain, Linux kernel keyring, Windows Credential Manager, or an age-encrypted local file
 - **Automatic TOTP generation** from stored secret
 - **Async REST API** calls using reqwest
 - **Minimal dependencies** and clean code
@@ -140,39 +140,18 @@ Credentials are stored securely in system-native credential storage by default:
   - Session keyring: Persists until logout
   - For persistent storage across logins/reboots without a desktop/D-Bus session (e.g.
     headless SSH to a login node), use `credential_source = "local"` (see below) — a
-    password manager (Bitwarden/1Password) or a Secret-Service-backed keyring both
-    require infrastructure (a CLI login, or a running desktop keyring daemon) that isn't
-    guaranteed to be present in that environment
+    password manager or a Secret-Service-backed keyring both require infrastructure (a
+    CLI login, or a running desktop keyring daemon) that isn't guaranteed to be present
+    in that environment
   - Service names: `NERSC` and `NERSC_SECRET`
 
-Optional password manager sources are configured in `~/.config/sshproxy-rust/config.toml`.
-
-**Bitwarden**
-
-```toml
-credential_source = "bitwarden"
-
-[bitwarden]
-item = "NERSC"
-# command = "bw"
-```
-
-The Bitwarden CLI must be installed, logged in, and unlocked. If your Bitwarden CLI session requires `BW_SESSION`, export it before running `sshproxy-rust`. The configured item must contain the NERSC password and a TOTP field; the tool calls `bw get password <item>` and `bw get totp <item>`.
-
-**1Password**
+The service name defaults to `NERSC` and can be overridden in
+`~/.config/sshproxy-rust/config.toml`:
 
 ```toml
-credential_source = "1password"
-
-[onepassword]
-item = "NERSC"
-vault = "Private"
-# account = "work"
-# command = "op"
-# password_field = "password"
+[system]
+service_name = "MYSITE"
 ```
-
-The 1Password CLI must be installed and signed in. The configured item must contain the NERSC password field and a one-time password field; the tool calls `op item get <item> --fields label=<password_field> --reveal` and `op item get <item> --otp`.
 
 **Local Encrypted File**
 
@@ -266,9 +245,7 @@ sshproxy-rust --update-secret
 ```
 
 `--update-password` and `--update-secret` also work when `credential_source` is `local`
-(you'll be prompted for the passphrase each time). When `credential_source` is
-`bitwarden` or `1password`, these flags are ignored — update those credentials directly
-in the password manager.
+(you'll be prompted for the passphrase each time).
 
 #### Check version
 
@@ -282,9 +259,9 @@ sshproxy-rust --version
 
 The tool follows a six-step process to generate SSH credentials:
 
-1. **Credential Retrieval**: Loads password and OTP from system credential storage, Bitwarden, 1Password, or an age-encrypted local file
+1. **Credential Retrieval**: Loads password and OTP from system credential storage or an age-encrypted local file
 
-2. **TOTP Generation**: Generates the current TOTP code from the stored secret for system storage and the local file source, or asks Bitwarden/1Password for the current OTP code
+2. **TOTP Generation**: Generates the current TOTP code from the stored secret for both the system storage and local file sources
 
 3. **API Request**: POSTs to `https://sshproxy.nersc.gov/create_pair/default/` with HTTP Basic Auth (username:password+OTP)
 

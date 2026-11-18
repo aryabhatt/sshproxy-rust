@@ -67,7 +67,7 @@ Install a specific version directly from GitHub:
 cargo install --git https://github.com/aryabhatt/sshproxy-rust
 
 # Install specific version
-cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.1.0
+cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.1.1
 ```
 
 ---
@@ -556,6 +556,6 @@ This project maintains the same license as the original NERSC sshproxy to ensure
 
 ---
 
-**Version**: 2.1.0  
+**Version**: 2.1.1  
 **Last Updated**: 2026-11-18  
 **Maintainer**: [@aryabhatt](https://github.com/aryabhatt)

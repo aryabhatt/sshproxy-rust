@@ -27,6 +27,8 @@ sshproxy-rust --update-password
 sshproxy-rust --update-secret
 ```
 
+The TOTP secret is the base32 key shown when you set up NERSC MFA, not the 6-digit code from your authenticator app. You can paste it as shown: dashes, spaces, lowercase letters and trailing `=` are all accepted.
+
 Credentials are stored securely in system credential storage:
 - **macOS**: Keychain under services `NERSC` (for password) and `NERSC_SECRET` (for TOTP secret)
 - **Linux**: Kernel keyring under the same service names
@@ -35,7 +37,7 @@ Credentials are stored securely in system credential storage:
 ### Generate SSH Certificate
 
 ```bash
-# Use default username ($USER)
+# Use default username ($USER, or %USERNAME% on Windows)
 sshproxy-rust
 
 # Or specify username
@@ -46,6 +48,8 @@ Certificates are saved to:
 - Private key: `~/.ssh/nersc`
 - Certificate: `~/.ssh/nersc-cert.pub`
 - Public key: `~/.ssh/nersc.pub`
+
+On Windows, `~` is your user profile folder (`%USERPROFILE%`), and `ssh-keygen` comes from the built-in Windows OpenSSH Client.
 
 ## Documentation
 

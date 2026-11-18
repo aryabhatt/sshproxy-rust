@@ -40,9 +40,9 @@ A stripped-down Rust implementation of NERSC's SSH Proxy client that securely st
 
 ### Prerequisites
 
-- **Operating System**: macOS or Linux
+- **Operating System**: macOS, Linux, or Windows
 - **Rust**: Latest stable version recommended (minimum 1.70+)
-- **SSH Tools**: `ssh-keygen` must be available in your PATH
+- **SSH Tools**: `ssh-keygen` must be available in your PATH (on Windows, the built-in OpenSSH Client provides it)
 
 ### From Source
 
@@ -90,7 +90,9 @@ You will be prompted to enter your NERSC password securely.
 sshproxy-rust --update-secret
 ```
 
-You will be prompted to enter your TOTP secret. This not the 6-digit code from authenticator app. Visit [NERSC](https://docs.nersc.gov/connect/mfa/) is generate a MFA Secret.
+You will be prompted to enter your TOTP secret. This is not the 6-digit code from your authenticator app; it is the base32 MFA secret key (letters A-Z and digits 2-7). Visit [NERSC](https://docs.nersc.gov/connect/mfa/) to generate an MFA secret.
+
+You can paste the secret as shown: dashes, spaces, lowercase letters and trailing `=` padding are ignored.
 
 **Note:** Both credentials must be set before you can generate SSH keys.
 
@@ -125,7 +127,7 @@ The tool saves SSH keys and certificates to the following locations:
 - **Certificate**: `~/.ssh/nersc-cert.pub`
 - **Public key**: `~/.ssh/nersc.pub`
 
-All keys are automatically set to `600` permissions (owner read/write only).
+On macOS and Linux, the private key is set to `600` permissions (owner read/write only). On Windows, files go under `%USERPROFILE%\.ssh\` and keep the folder's default permissions, which Windows OpenSSH accepts.
 
 ### Credential Storage
 
@@ -139,6 +141,10 @@ Credentials are stored securely in system-native credential storage:
 - **Linux**: Kernel keyring
   - Session keyring: Persists until logout
   - For persistent storage across reboots, consider using `user` keyring or a password manager
+  - Service names: `NERSC` and `NERSC_SECRET`
+
+- **Windows**: Credential Manager (Windows Credentials)
+  - Persists across reboots
   - Service names: `NERSC` and `NERSC_SECRET`
 
 ### Using with SSH
@@ -168,7 +174,7 @@ ssh perlmutter
 sshproxy-rust [OPTIONS] [USERNAME]
 
 Arguments:
-  [USERNAME]                  NERSC username [default: $USER environment variable]
+  [USERNAME]                  NERSC username [default: $USER, or %USERNAME% on Windows]
 
 Options:
   -p, --update-password       Update NERSC password in credential storage
@@ -185,7 +191,7 @@ Options:
 sshproxy-rust
 ```
 
-Uses the `$USER` environment variable as the NERSC username.
+Uses the `$USER` environment variable (or `%USERNAME%` on Windows) as the NERSC username. Pass your NERSC username explicitly if it differs from your local one.
 
 #### Generate SSH certificate (specific user)
 
@@ -300,6 +306,19 @@ sshproxy-rust --update-secret
   # RHEL/CentOS/Fedora
   sudo dnf install openssh-clients
   ```
+- **Windows**: Install the OpenSSH Client (Settings > System > Optional features), or in an admin PowerShell:
+  ```powershell
+  Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+  ```
+
+### "Failed to decode base32 OTP secret"
+
+**Cause**: The stored secret contains characters that are not valid base32. Dashes, spaces, lowercase letters and `=` padding are accepted, but other characters (for example `0`, `1`, `8` or punctuation) are not. This usually means a typo, or the 6-digit code was entered instead of the secret.
+
+**Solution**: Re-enter the secret key from NERSC MFA setup:
+```bash
+sshproxy-rust --update-secret
+```
 
 ### "Permission denied" errors
 
@@ -312,6 +331,12 @@ mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 
 # Re-run sshproxy-rust (it will set correct permissions)
+sshproxy-rust
+```
+
+On Windows (PowerShell):
+```powershell
+New-Item -ItemType Directory -Force $env:USERPROFILE\.ssh
 sshproxy-rust
 ```
 

@@ -26,15 +26,15 @@ const SCOPE: &str = "default";
     version = "2.1.0"
     )]
 struct Args {
-    /// Username, if not provided, taken from USER env variable
+    /// Username; defaults to the USER (or Windows USERNAME) env variable
     // #[clap(long, env = "USER")]
     username: Option<String>,
 
-    /// Update NERSC password in macOS Keychain
+    /// Update NERSC password in system credential storage
     #[clap(short = 'p', long)]
     update_password: bool,
 
-    /// Update NERSC TOTP secret in macOS Keychain
+    /// Update NERSC TOTP secret in system credential storage
     #[clap(long)]
     update_secret: bool,
 }
@@ -159,10 +159,18 @@ fn generate_totp(secret: &str) -> Result<String> {
     use std::time::{SystemTime, UNIX_EPOCH};
     use totp_lite::{totp_custom, Sha1};
 
+    // Normalize: secrets are often displayed grouped ("ABCD-EFGH" / "abcd efgh")
+    // and sometimes include '=' padding. Strip those before decoding.
+    let normalized: String = secret
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '-' && *c != '=')
+        .collect::<String>()
+        .to_uppercase();
+
     // Decode base32 secret
     let secret_bytes = data_encoding::BASE32_NOPAD
-        .decode(secret.to_uppercase().as_bytes())
-        .context("Failed to decode base32 OTP secret")?;
+        .decode(normalized.as_bytes())
+        .context("Failed to decode base32 OTP secret (expected characters A-Z and 2-7)")?;
 
     // Get current Unix timestamp
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
@@ -359,4 +367,41 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // "12345678901234567890" in base32 (RFC 6238 SHA1 test key)
+    const SECRET: &str = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+
+    #[test]
+    fn totp_accepts_plain_secret() {
+        assert_eq!(generate_totp(SECRET).unwrap().len(), 6);
+    }
+
+    #[test]
+    fn totp_ignores_dashes_spaces_case_and_padding() {
+        let plain = generate_totp(SECRET).unwrap();
+        for v in [
+            "GEZD-GNBV-GY3T-QOJQ-GEZD-GNBV-GY3T-QOJQ",
+            "gezd gnbv gy3t qojq gezd gnbv gy3t qojq",
+            "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ====",
+        ] {
+            assert_eq!(generate_totp(v).unwrap(), plain, "variant {v}");
+        }
+    }
+
+    #[test]
+    fn totp_rejects_invalid_characters() {
+        assert!(generate_totp("NOT-BASE32-!!!1").is_err());
+    }
+
+    #[test]
+    fn rfc6238_vector() {
+        use totp_lite::{totp_custom, Sha1};
+        // RFC 6238: T=59 -> 94287082 (8 digits); last 6 digits = 287082
+        assert_eq!(totp_custom::<Sha1>(30, 6, b"12345678901234567890", 59), "287082");
+    }
 }

@@ -26,12 +26,12 @@ A stripped-down Rust implementation of NERSC's SSH Proxy client that securely st
 
 ## Features
 
-- **Secure credential storage** using macOS Keychain or Linux kernel keyring
+- **Secure credential storage** using macOS Keychain, Linux kernel keyring, or Windows Credential Manager
 - **Automatic TOTP generation** from stored secret
 - **Async REST API** calls using reqwest
 - **Minimal dependencies** and clean code
-- **Proper file permissions** (600 for private keys)
-- **Cross-platform** support for macOS and Linux
+- **Proper file permissions** (600 for private keys on macOS and Linux)
+- **Cross-platform** support for macOS, Linux, and Windows
 - **Certificate validation** and automatic expiry display
 
 ---
@@ -56,7 +56,7 @@ cargo build --release
 cargo install --path .
 ```
 
-The binary will be installed to `$HOME/.cargo/bin/sshproxy-rust`
+The binary will be installed to `$HOME/.cargo/bin/sshproxy-rust` (`%USERPROFILE%\.cargoin\sshproxy-rust.exe` on Windows)
 
 ### From GitHub Release
 
@@ -67,7 +67,7 @@ Install a specific version directly from GitHub:
 cargo install --git https://github.com/aryabhatt/sshproxy-rust
 
 # Install specific version
-cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.0.0
+cargo install --git https://github.com/aryabhatt/sshproxy-rust --tag v2.1.0
 ```
 
 ---
@@ -232,7 +232,7 @@ The tool follows a six-step process to generate SSH credentials:
 4. **Key Processing**: Extracts private key and certificate from the combined response
 
 5. **File Management**: 
-   - Saves private key to `~/.ssh/nersc` with 600 permissions
+   - Saves private key to `~/.ssh/nersc` (with 600 permissions on macOS and Linux)
    - Extracts and saves certificate to `~/.ssh/nersc-cert.pub`
    - Generates and saves public key to `~/.ssh/nersc.pub` using `ssh-keygen`
 
@@ -252,7 +252,7 @@ The tool follows a six-step process to generate SSH credentials:
 
 - ✅ **No plaintext storage**: Credentials stored in OS-native secure storage
 - ✅ **TOTP on-the-fly**: TOTP codes generated dynamically, never stored
-- ✅ **Secure file permissions**: Private keys automatically set to 600
+- ✅ **Secure file permissions**: Private keys automatically set to 600 on macOS and Linux
 - ✅ **HTTPS-only**: All API communication encrypted via TLS
 - ✅ **No credential logging**: Passwords and secrets never logged
 
@@ -260,8 +260,9 @@ The tool follows a six-step process to generate SSH credentials:
 
 - **macOS Keychain**: Credentials protected by Keychain encryption, same security as Safari passwords
 - **Linux Kernel Keyring**: Session-based storage, cleared on logout
+- **Windows Credential Manager**: Credentials encrypted with your Windows account (DPAPI) and persist across reboots
 - **HTTPS Basic Auth**: Password and OTP combined and sent via HTTPS Basic Authentication
-- **Private Key Protection**: Files created with restrictive permissions from the start
+- **Private Key Protection**: On macOS and Linux, private keys are restricted to the owner (600). On Windows, they inherit the permissions of your `%USERPROFILE%\.ssh` folder
 
 ### Best Practices
 
@@ -463,7 +464,7 @@ Core dependencies:
 - **tokio** - Async runtime
 - **reqwest** - HTTP client for API requests
 - **security-framework** - macOS Keychain access (macOS only)
-- **keyring** - Linux kernel keyring access (Linux only)
+- **keyring** - Linux kernel keyring and Windows Credential Manager access (Linux and Windows)
 - **totp-lite** - TOTP code generation
 - **data-encoding** - Base32 decoding for TOTP secrets
 - **rpassword** - Secure password input (no echo)
@@ -539,11 +540,11 @@ This project maintains the same license as the original NERSC sshproxy to ensure
 
 ### Q: Can I use this on Windows?
 
-**A:** Not currently. The tool supports macOS and Linux only. Windows support may be added in the future.
+**A:** Yes. Since v2.1.0, Windows is supported. Credentials are stored in Windows Credential Manager, keys are saved to `%USERPROFILE%\.ssh\`, and the built-in Windows OpenSSH Client provides `ssh-keygen`.
 
 ### Q: Where can I find my TOTP secret?
 
-**A:** Your TOTP secret is provided when you first set up MFA at NERSC. Check your authenticator app settings or contact NERSC support.
+**A:** Your TOTP secret is provided when you first set up MFA at NERSC. Check your authenticator app settings or contact NERSC support. It is a base32 string (letters A-Z and digits 2-7); you can paste it with or without dashes or spaces.
 
 ### Q: Can I customize the output file location?
 
@@ -555,6 +556,6 @@ This project maintains the same license as the original NERSC sshproxy to ensure
 
 ---
 
-**Version**: 2.0.0  
-**Last Updated**: 2024-01-15  
+**Version**: 2.1.0  
+**Last Updated**: 2026-11-18  
 **Maintainer**: [@aryabhatt](https://github.com/aryabhatt)
